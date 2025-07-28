@@ -1,0 +1,14 @@
+# Node and Python
+node_modules/
+__pycache__/
+*.pyc
+
+# OS generated files
+.DS_Store
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
