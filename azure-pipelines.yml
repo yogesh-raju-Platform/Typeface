@@ -1,0 +1,84 @@
+trigger:
+  - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  imageRepositoryFrontend: 'frontend'
+  imageRepositoryBackend: 'backend'
+  dockerRegistryServiceConnection: 'YOUR_AZURE_CONNECTION'
+  containerRegistry: 'youracr.azurecr.io'
+  kubernetesServiceConnection: 'YOUR_K8S_CONNECTION'
+  namespace: 'default'
+
+stages:
+
+- stage: Build
+  jobs:
+  - job: Build
+    steps:
+    - task: Docker@2
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryBackend)
+        command: buildAndPush
+        Dockerfile: Dockerfile.backend
+        tags: latest
+
+    - task: Docker@2
+      inputs:
+        containerRegistry: $(dockerRegistryServiceConnection)
+        repository: $(imageRepositoryFrontend)
+        command: buildAndPush
+        Dockerfile: Dockerfile.frontend
+        tags: latest
+
+- stage: Deploy
+  dependsOn: Build
+  jobs:
+  - deployment: Deploy
+    environment: 'dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: Kubernetes@1
+            displayName: 'Deploy Backend'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: apply
+              useConfigurationFile: true
+              configuration: k8s/backend-deployment.yaml
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Backend Service'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: apply
+              useConfigurationFile: true
+              configuration: k8s/backend-service.yaml
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Frontend'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: apply
+              useConfigurationFile: true
+              configuration: k8s/frontend-deployment.yaml
+
+          - task: Kubernetes@1
+            displayName: 'Deploy Frontend Service'
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: $(kubernetesServiceConnection)
+              namespace: $(namespace)
+              command: apply
+              useConfigurationFile: true
+              configuration: k8s/frontend-service.yaml
